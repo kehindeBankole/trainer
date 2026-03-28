@@ -76,6 +76,27 @@ func (h *UserHandler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
+	users, err := h.store.GetAllUsers(r.Context())
+	if err != nil {
+		h.logger.Printf("error fetching users: %v", err)
+		ErrorJSON(w, http.StatusInternalServerError, "could not fetch users")
+		return
+	}
+
+	resp := make([]userResponse, len(users))
+	for i, u := range users {
+		resp[i] = userResponse{
+			ID:        u.ID,
+			Username:  u.Username,
+			Email:     u.Email,
+			CreatedAt: u.CreatedAt.String(),
+		}
+	}
+
+	WriteJSON(w, http.StatusOK, resp)
+}
+
 func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {

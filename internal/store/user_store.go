@@ -14,6 +14,7 @@ type UserStore interface {
 	CreateUser(ctx context.Context, user *User) error
 	GetUserByID(ctx context.Context, id uuid.UUID) (*User, error)
 	GetUserByEmail(ctx context.Context, email string) (*User, error)
+	GetAllUsers(ctx context.Context) ([]*User, error)
 }
 
 type PostgresUserStore struct {
@@ -67,6 +68,29 @@ func (s *PostgresUserStore) GetUserByID(ctx context.Context, id uuid.UUID) (*Use
 		return nil, err
 	}
 	return user, nil
+}
+
+func (s *PostgresUserStore) GetAllUsers(ctx context.Context) ([]*User, error) {
+	query := `
+		SELECT id, username, email, created_at
+		FROM users
+		ORDER BY created_at DESC`
+
+	rows, err := s.db.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []*User
+	for rows.Next() {
+		user := &User{}
+		if err := rows.Scan(&user.ID, &user.Username, &user.Email, &user.CreatedAt); err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+	}
+	return users, rows.Err()
 }
 
 func (s *PostgresUserStore) GetUserByEmail(ctx context.Context, email string) (*User, error) {
