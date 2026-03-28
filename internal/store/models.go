@@ -10,11 +10,11 @@ import (
 var ErrDuplicateEntry = errors.New("duplicate entry")
 
 type User struct {
-	ID        uuid.UUID
-	Username  string
-	Email     string
-	Password  string
-	CreatedAt time.Time
+	ID        uuid.UUID `json:"id"`
+	Username  string    `json:"username"`
+	Email     string    `json:"email"`
+	Password  string    `json:"-"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type Exercise struct {

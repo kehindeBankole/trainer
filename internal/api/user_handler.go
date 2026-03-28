@@ -84,17 +84,7 @@ func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := make([]userResponse, len(users))
-	for i, u := range users {
-		resp[i] = userResponse{
-			ID:        u.ID,
-			Username:  u.Username,
-			Email:     u.Email,
-			CreatedAt: u.CreatedAt.String(),
-		}
-	}
-
-	WriteJSON(w, http.StatusOK, resp)
+	WriteJSON(w, http.StatusOK, users)
 }
 
 func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
