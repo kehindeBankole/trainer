@@ -8,16 +8,18 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
+	"workout-trainer/internal/auth"
 	"workout-trainer/internal/store"
 )
 
 type UserHandler struct {
-	store  store.UserStore
-	logger *log.Logger
+	store         store.UserStore
+	logger        *log.Logger
+	authenticator *auth.JWTAuthenticator
 }
 
-func NewUserHandler(store store.UserStore, logger *log.Logger) *UserHandler {
-	return &UserHandler{store: store, logger: logger}
+func NewUserHandler(store store.UserStore, logger *log.Logger, authenticator *auth.JWTAuthenticator) *UserHandler {
+	return &UserHandler{store: store, logger: logger, authenticator: authenticator}
 }
 
 type registerRequest struct {
@@ -85,6 +87,57 @@ func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	WriteJSON(w, http.StatusOK, users)
+}
+
+type loginRequest struct {
+	Email    string `json:"email"    validate:"required,email"`
+	Password string `json:"password" validate:"required"`
+}
+
+type loginResponse struct {
+	Token string       `json:"token"`
+	User  userResponse `json:"user"`
+}
+
+func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
+	var req loginRequest
+	if err := ReadJSON(r, &req); err != nil {
+		ErrorJSON(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if err := Validate.Struct(req); err != nil {
+		ValidationErrorJSON(w, err)
+		return
+	}
+
+	user, err := h.store.GetUserByEmail(r.Context(), req.Email)
+	if err != nil {
+		ErrorJSON(w, http.StatusUnauthorized, "invalid credentials")
+		return
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+		ErrorJSON(w, http.StatusUnauthorized, "invalid credentials")
+		return
+	}
+
+	token, err := h.authenticator.GenerateToken(user.ID)
+	if err != nil {
+		h.logger.Printf("error generating token: %v", err)
+		ErrorJSON(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	WriteJSON(w, http.StatusOK, loginResponse{
+		Token: token,
+		User: userResponse{
+			ID:        user.ID,
+			Username:  user.Username,
+			Email:     user.Email,
+			CreatedAt: user.CreatedAt.String(),
+		},
+	})
 }
 
 func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {

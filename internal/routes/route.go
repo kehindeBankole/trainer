@@ -2,16 +2,17 @@ package routes
 
 import (
 	"workout-trainer/internal/app"
+	"workout-trainer/internal/middleware"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 )
 
 func SetupRoutes(app *app.Application) *chi.Mux {
 	r := chi.NewRouter()
 
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
+	r.Use(chimiddleware.Logger)
+	r.Use(chimiddleware.Recoverer)
 
 	r.Get("/health", app.HealthCheck)
 
@@ -20,13 +21,18 @@ func SetupRoutes(app *app.Application) *chi.Mux {
 		r.Route("/users", func(r chi.Router) {
 			r.Post("/register", app.UserHandler.RegisterUser)
 			r.Get("/", app.UserHandler.GetAllUsers)
+			r.Post("/login", app.UserHandler.Login)
 			r.Get("/{id}", app.UserHandler.GetUser)
 		})
 
 		r.Route("/exercises", func(r chi.Router) {
-			r.Post("/", app.ExerciseHandler.CreateExercise)
 			r.Get("/", app.ExerciseHandler.GetAllExercises)
 			r.Get("/{id}", app.ExerciseHandler.GetExercise)
+
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.Authenticate(app.Authenticator))
+				r.Post("/", app.ExerciseHandler.CreateExercise)
+			})
 		})
 
 	})
